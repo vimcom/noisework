@@ -286,13 +286,49 @@ document.addEventListener('DOMContentLoaded', function() {
         const GITHUB_REPO_REG = /<a href="https:\/\/github\.com\/([\w-]+)\/([\w.-]+)(?:\/[^\s"]*)?"[^>]*>(?!<img)[\s\S]*?<\/a>/g;
 
         // 处理标签（在 Markdown 解析后）
-        content = content.replace(/<p>(.*?)<\/p>/g, (match, p) => {
-            return '<p>' + p.replace(/#([^\s#<>]+)/g, '<span class="tag" onclick="filterByTag(\'$1\')">#$1</span>') + '</p>';
+        // 使用DOM方式处理，避免正则嵌套问题
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        
+        // 遍历所有文本节点，替换#标签
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        const nodesToReplace = [];
+        let node;
+        while (node = walker.nextNode()) {
+            const text = node.textContent;
+            if (text.match(/#[^\s#]+/)) {
+                nodesToReplace.push(node);
+            }
+        }
+        
+        nodesToReplace.forEach(textNode => {
+            const text = textNode.textContent;
+            const newText = text.replace(/#([\u4e00-\u9fff\w]+)/g, function(match, tag) {
+                return '<span class="tag" onclick="filterByTag(\'' + tag + '\')">#' + tag + '</span>';
+            });
+            if (newText !== text) {
+                const span = document.createElement('span');
+                span.innerHTML = newText;
+                textNode.parentNode.replaceChild(span, textNode);
+            }
         });
+        
+        content = tempDiv.innerHTML;
 
         // 处理各种媒体链接
         content = content
-        .replace(BILIBILI_REG, "<div class='video-wrapper'><iframe src='https://www.bilibili.com/blackboard/html5mobileplayer.html?bvid=$1&as_wide=1&high_quality=1&danmaku=0' scrolling='no' border='0' frameborder='no' framespacing='0' allowfullscreen='true' style='position:absolute;height:100%;width:100%;'></iframe></div>")
+        .replace(BILIBILI_REG, function (match, videoId) {
+            var base = "https://player.bilibili.com/player.html?isOutside=true&autoplay=0&high_quality=1&danmaku=0";
+            var src = "";
+            if (/^av\d+$/i.test(videoId)) {
+                src = base + "&aid=" + videoId.slice(2);
+            } else if (/^BV[\w]{10}$/i.test(videoId)) {
+                src = base + "&bvid=" + videoId;
+            } else {
+                return match;
+            }
+            return "<div class='video-wrapper'><iframe src='" + src + "' frameborder='0' allowfullscreen allow='fullscreen; picture-in-picture; encrypted-media' style='position:absolute;height:100%;width:100%;'></iframe></div>";
+        })
         .replace(YOUTUBE_REG, "<div class='video-wrapper'><iframe src='https://www.youtube.com/embed/$2' title='YouTube video player' frameborder='0' allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture' allowfullscreen></iframe></div>")
         .replace(NETEASE_MUSIC_REG, "<div class='music-wrapper'><meting-js auto='https://music.163.com/#/song?id=$1'></meting-js></div>")
         .replace(QQMUSIC_REG, "<div class='music-wrapper'><meting-js auto='https://y.qq.com/n/yqq/song$1.html'></meting-js></div>")

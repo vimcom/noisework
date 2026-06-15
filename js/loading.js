@@ -1,8 +1,14 @@
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
   var spinnerContainer = document.getElementById('spinner-container');
-
-  // 设置一个定时器，在3秒后隐藏加载指示器
-  setTimeout(function() {
+  if (spinnerContainer) {
     spinnerContainer.style.display = 'none';
-  }, 3000); // 3000毫秒即3秒
+  }
 });
+
+// 安全回退：最多3秒后隐藏
+setTimeout(function() {
+  var spinnerContainer = document.getElementById('spinner-container');
+  if (spinnerContainer) {
+    spinnerContainer.style.display = 'none';
+  }
+}, 3000);

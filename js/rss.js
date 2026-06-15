@@ -4,7 +4,7 @@ var rssContainer = document.querySelector('.rss-container');
 var rssItem = document.getElementById('rss-item');
 var rssSources = [
   'https://www.noiseblogs.top/atom.xml',
-  'https://noisevip.cn/feed',
+  'https://noisevip.cn/rss',
   // 添加更多的RSS信息源
 ];
 var currentRssIndex = 0;

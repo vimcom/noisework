@@ -66,10 +66,10 @@ function showError() {
 // 初始加载时显示第一个RSS项
 fetchRssItems(rssSources[currentRssIndex]);
 
-// 每隔8秒变换一次信息
+// 每隔30秒变换一次信息（原8秒过于频繁）
 setInterval(function() {
   fetchRssItems(rssSources[currentRssIndex]);
-}, 8000);
+}, 30000);
 
 // 定时检查RSS源是否有更新
 setInterval(function() {

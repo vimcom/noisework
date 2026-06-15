@@ -94,7 +94,13 @@ document.addEventListener('DOMContentLoaded', function() {
         loadedAll.style.display = 'none';
         clearMessages();
         // 重置时显示加载状态
-        container.querySelector('.loading-wrapper').style.display = 'block';
+        const loadingWrapper = container.querySelector('.loading-wrapper');
+        if (loadingWrapper) {
+            loadingWrapper.textContent = '加载中...';
+            loadingWrapper.style.cursor = 'default';
+            loadingWrapper.onclick = null;
+            loadingWrapper.style.display = 'block';
+        }
     }
     
     function clearMessages() {
@@ -192,6 +198,27 @@ document.addEventListener('DOMContentLoaded', function() {
         parse: (text) => text
     };
 
+    // 将内容中连续的图片包装成宫格布局容器
+    function wrapImagesInGrid(html) {
+        // 匹配连续的 <img> 标签（可能被 <p> 包裹），将其放入宫格容器
+        // 先处理 <p><img...></p> 的情况（marked会将图片包裹在<p>中）
+        const imgBlockRegex = /(<p>\s*<img[^>]*class="zoom-image"[^>]*>\s*<\/p>\s*)+/g;
+        html = html.replace(imgBlockRegex, (match) => {
+            const imgs = match.match(/<img[^>]*>/g) || [];
+            if (imgs.length <= 1) return match; // 单张图片不包装
+            return '<div class="image-grid image-grid-' + Math.min(imgs.length, 4) + '">' + imgs.join('') + '</div>';
+        });
+        
+        // 处理未被<p>包裹的连续<img>标签
+        const imgRegex = /(<img[^>]*class="zoom-image"[^>]*>\s*){2,}/g;
+        html = html.replace(imgRegex, (match) => {
+            const imgs = match.match(/<img[^>]*>/g) || [];
+            return '<div class="image-grid image-grid-' + Math.min(imgs.length, 4) + '">' + imgs.join('') + '</div>';
+        });
+        
+        return html;
+    }
+
     function parseContent(content) {
         // 先解析 Markdown
         content = marked.parse(content);
@@ -209,19 +236,60 @@ document.addEventListener('DOMContentLoaded', function() {
         const NETEASE_MUSIC_REG = /<a href="https:\/\/music\.163\.com\/.*?id=(\d+)">.*?<\/a>/g;
 
         // 处理标签（在 Markdown 解析后）
-        content = content.replace(/<p>(.*?)<\/p>/g, (match, p) => {
-            return '<p>' + p.replace(/#([^\s#<>]+)/g, '<span class="tag" onclick="filterByTag(\'$1\')">#$1</span>') + '</p>';
+        // 使用DOM方式处理，避免正则嵌套问题
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        
+        // 遍历所有文本节点，替换#标签
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        const nodesToReplace = [];
+        let node;
+        while (node = walker.nextNode()) {
+            const text = node.textContent;
+            // 匹配 #后跟非空白字符 的标签（排除HTML相关的#如颜色代码）
+            if (text.match(/#[^\s#]+/)) {
+                nodesToReplace.push(node);
+            }
+        }
+        
+        nodesToReplace.forEach(textNode => {
+            const text = textNode.textContent;
+            // 替换 #标签 为可点击的span，只匹配 #后跟中文/英文/数字/下划线
+            const newText = text.replace(/#([\u4e00-\u9fff\w]+)/g, function(match, tag) {
+                return '<span class="tag" onclick="filterByTag(\'' + tag + '\')">#' + tag + '</span>';
+            });
+            if (newText !== text) {
+                const span = document.createElement('span');
+                span.innerHTML = newText;
+                textNode.parentNode.replaceChild(span, textNode);
+            }
         });
+        
+        content = tempDiv.innerHTML;
 
         // 处理各种媒体链接
         content = content
-            .replace(BILIBILI_REG, "<div class='video-wrapper'><iframe src='https://www.bilibili.com/blackboard/html5mobileplayer.html?bvid=$1&as_wide=1&high_quality=1&danmaku=0' scrolling='no' border='0' frameborder='no' framespacing='0' allowfullscreen='true' style='position:absolute;height:100%;width:100%;'></iframe></div>")
+            .replace(BILIBILI_REG, function (match, videoId) {
+                var base = "https://player.bilibili.com/player.html?isOutside=true&autoplay=0&high_quality=1&danmaku=0";
+                var src = "";
+                if (/^av\d+$/i.test(videoId)) {
+                    src = base + "&aid=" + videoId.slice(2);
+                } else if (/^BV[\w]{10}$/i.test(videoId)) {
+                    src = base + "&bvid=" + videoId;
+                } else {
+                    return match;
+                }
+                return "<div class='video-wrapper'><iframe src='" + src + "' frameborder='0' allowfullscreen allow='fullscreen; picture-in-picture; encrypted-media' style='position:absolute;height:100%;width:100%;'></iframe></div>";
+            })
             .replace(YOUTUBE_REG, "<div class='video-wrapper'><iframe src='https://www.youtube.com/embed/$2' title='YouTube video player' frameborder='0' allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture' allowfullscreen></iframe></div>")
             .replace(NETEASE_MUSIC_REG, "<div class='music-wrapper'><meting-js auto='https://music.163.com/#/song?id=$1'></meting-js></div>")
             .replace(QQMUSIC_REG, "<div class='music-wrapper'><meting-js auto='https://y.qq.com/n/yqq/song$1.html'></meting-js></div>")
             .replace(QQVIDEO_REG, "<div class='video-wrapper'><iframe src='//v.qq.com/iframe/player.html?vid=$1' allowFullScreen='true' frameborder='no'></iframe></div>")
             .replace(SPOTIFY_REG, "<div class='spotify-wrapper'><iframe style='border-radius:12px' src='https://open.spotify.com/embed/$1/$2?utm_source=generator&theme=0' width='100%' frameBorder='0' allowfullscreen='' allow='autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture' loading='lazy'></iframe></div>")
             .replace(YOUKU_REG, "<div class='video-wrapper'><iframe src='https://player.youku.com/embed/$1' frameborder=0 'allowfullscreen'></iframe></div>");
+
+        // 将连续的图片包装成宫格布局
+        content = wrapImagesInGrid(content);
 
         return content;
     }
@@ -238,12 +306,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showNoContent() {
-        container.querySelector('.loading-wrapper').textContent = '暂无内容';
+        const loadingWrapper = container.querySelector('.loading-wrapper');
+        if (loadingWrapper) {
+            loadingWrapper.textContent = '暂无内容';
+            loadingWrapper.style.display = 'block';
+        }
         hasMore = false;
     }
     
     function showLoadError() {
-        container.querySelector('.loading-wrapper').textContent = '加载失败，请刷新重试';
+        const loadingWrapper = container.querySelector('.loading-wrapper');
+        if (loadingWrapper) {
+            loadingWrapper.textContent = '加载失败，点击重试';
+            loadingWrapper.style.cursor = 'pointer';
+            loadingWrapper.style.display = 'block';
+            loadingWrapper.onclick = function() {
+                loadingWrapper.textContent = '加载中...';
+                loadingWrapper.style.cursor = 'default';
+                loadingWrapper.onclick = null;
+                loadInitialContent();
+            };
+        }
+        hasMore = false;
     }
     
     function renderMessages(messages) {
@@ -292,6 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ],
                 imageUploader: false,
                 copyright: false,
+                subscribe: false,
                 path: `${config.host}/#/messages/${uid}`,
             });
         });

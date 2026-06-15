@@ -300,7 +300,7 @@
                 <div class="project">
                     <i class="fa-solid fa-star"></i>
                     <a href="https://noisevip.cn" target="_blank"><h3>NOISE&宝藏阁</h3></a>
-                    <p>Wordpress站点</p>
+                    <p>独特设计和技术分享的平台</p>
                     <div class="language"><div style="--color:#e34c26">强大的资源分类支持</div></div>
                 </div>
                 <div class="project">
@@ -525,27 +525,72 @@
                 </br>
                 <div class="work">
                     <h2 class="chtitle"><span>音乐</span>赏析</span></h2>
+                    <link rel="stylesheet" href="css/APlayer.min.css">
+                    <script src="js/APlayer.min.js"></script>
+                    <script>
+                        (function () {
+                            var apis = [
+                                'https://api.i-meto.com/meting/api?server=:server&type=:type&id=:id&r=:r',
+                                'https://api.injahow.cn/meting/?server=:server&type=:type&id=:id&r=:r'
+                            ];
+
+                            function withTimeout(url, timeoutMs) {
+                                return new Promise(function (resolve, reject) {
+                                    var controller = new AbortController();
+                                    var timer = setTimeout(function () {
+                                        controller.abort();
+                                        reject(new Error('timeout'));
+                                    }, timeoutMs);
+
+                                    fetch(url, { signal: controller.signal, cache: 'no-store' })
+                                        .then(function (res) {
+                                            clearTimeout(timer);
+                                            resolve(res);
+                                        })
+                                        .catch(function (err) {
+                                            clearTimeout(timer);
+                                            reject(err);
+                                        });
+                                });
+                            }
+
+                            function buildTestUrl(tpl) {
+                                return tpl
+                                    .replace(':server', 'netease')
+                                    .replace(':type', 'playlist')
+                                    .replace(':id', '128460001')
+                                    .replace(':r', String(Date.now()));
+                            }
+
+                            function loadMeting() {
+                                var script = document.createElement('script');
+                                script.src = 'js/Meting.min.js';
+                                script.defer = true;
+                                document.head.appendChild(script);
+                            }
+
+                            (async function () {
+                                for (var i = 0; i < apis.length; i++) {
+                                    var tpl = apis[i];
+                                    try {
+                                        var res = await withTimeout(buildTestUrl(tpl), 1200);
+                                        if (!res || !res.ok) continue;
+                                        await res.text();
+                                        window.meting_api = tpl;
+                                        return;
+                                    } catch (e) {
+                                    }
+                                }
+                                window.meting_api = apis[0];
+                            })().finally(loadMeting);
+                        })();
+                    </script>
                     <div id="music-player">
-                        <meting-js list-max-height="130px" server="netease" type="playlist" data-fixed="true" data-autoplay="false"
+                        <meting-js list-max-height="130px" server="netease" type="playlist" autoplay="false"
                             id="128460001">
                         </meting-js>
                     </div>
                 </div>
-                
-                <!-- 确保 APlayer 和 Meting 的样式和脚本文件加载 -->
-                <link rel="stylesheet" href="css/APlayer.min.css" media="all">
-                <noscript>
-                    <link rel="stylesheet" href="css/APlayer.min.css">
-                </noscript>
-                <script src="js/APlayer.min.js" defer></script>
-                <script src="js/Meting.min.js" defer></script>
-                <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        if (typeof Meting !== 'undefined') {
-                            Meting.init();
-                        }
-                    });
-                </script>
                 <br>
                 <!-- 友情链接 -->
                 <div class="work">

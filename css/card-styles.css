@@ -66,6 +66,7 @@ body::-webkit-scrollbar {
     word-wrap: break-word;
     overflow-wrap: break-word;
     overflow: hidden;
+    position: relative;
     transition: max-height 0.3s ease-in-out;
 }
 
@@ -188,10 +189,32 @@ body::-webkit-scrollbar {
     transform: translateY(-1px);
 }
 
-.tag {  
-    color: rgb(120, 118, 226); /* 文本橙色 */   
+.notecard .tag,
+.rssmergecard .tag,
+.note-container .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(26, 115, 232, 0.25);
+    color: #5ee8d5;
+    border-radius: 4px;
+    margin: 2px 4px;
+    font-size: 12.5px;
     cursor: pointer;
-  }
+    transition: background 0.2s, color 0.2s, transform 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+    font-weight: 500;
+    border: 1px solid rgba(78, 205, 196, 0.3);
+}
+
+.notecard .tag:hover,
+.rssmergecard .tag:hover,
+.note-container .tag:hover {
+    background: rgba(26, 115, 232, 0.5);
+    color: #7df5e8;
+    transform: translateY(-1px);
+    border-color: rgba(78, 205, 196, 0.6);
+}
   
 
 .back-to-list, .load-more {
